@@ -1,3 +1,25 @@
+-----------------------------------------
+
+windows support
+require cygwin （automake  gcc）
+
+the makefile had edit to generat
+
+to build：
+make
+
+
+changgelog：
+    windows select suport
+    select size make 4096
+
+mail： 286402937@qq.com 蔡东赟
+
+thanks for 张家柱
+
+
+
+------------------------------------------
 This is beanstalkd, a fast, general-purpose work queue.
 See http://kr.github.io/beanstalkd/ for general info.
 
