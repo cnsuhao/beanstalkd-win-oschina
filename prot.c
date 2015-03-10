@@ -1926,7 +1926,7 @@ h_accept(const int fd, const short which, Server *s)
 
     flags = fcntl(cfd, F_GETFL, 0);
     if (flags < 0) {
-        twarn("getting flags");
+        printf("getting flags");
         close(cfd);
         if (verbose) {
             printf("close %d\n", cfd);
@@ -1937,7 +1937,7 @@ h_accept(const int fd, const short which, Server *s)
 
     r = fcntl(cfd, F_SETFL, flags | O_NONBLOCK);
     if (r < 0) {
-        twarn("setting O_NONBLOCK");
+        printf("setting O_NONBLOCK");
         close(cfd);
         if (verbose) {
             printf("close %d\n", cfd);
@@ -1948,7 +1948,7 @@ h_accept(const int fd, const short which, Server *s)
 
     c = make_conn(cfd, STATE_WANTCOMMAND, default_tube, default_tube);
     if (!c) {
-        twarnx("make_conn() failed");
+        printf("make_conn() failed");
         close(cfd);
         if (verbose) {
             printf("close %d\n", cfd);
@@ -1963,7 +1963,7 @@ h_accept(const int fd, const short which, Server *s)
 
     r = sockwant(&c->sock, 'r');
     if (r == -1) {
-        twarn("sockwant");
+        printf("sockwant");
         close(cfd);
         if (verbose) {
             printf("close %d\n", cfd);
