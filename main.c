@@ -55,15 +55,18 @@ main(int argc, char **argv)
     progname = argv[0];
     setlinebuf(stdout);
     optparse(&srv, argv+1);
+    
+    printf("pid %d\n", getpid());
+    
+    //if (verbose) {
+    //    printf("pid %d\n", getpid());
+    //}
 
-    if (verbose) {
-        printf("pid %d\n", getpid());
-    }
-
+    printf("2\n");
     r = make_server_socket(srv.addr, srv.port);
-    if (r == -1) twarnx("make_server_socket()"), exit(111);
+    if (r == -1) printf("make_server_socket()"), exit(111);
     srv.sock.fd = r;
-
+   printf("3");
     prot_init();
 
     if (srv.user) su(srv.user);
@@ -74,7 +77,7 @@ main(int argc, char **argv)
         // to use the wal directory at a time. So acquire a lock
         // now and never release it.
         if (!waldirlock(&srv.wal)) {
-            twarnx("failed to lock wal dir %s", srv.wal.dir);
+            printf("failed to lock wal dir %s", srv.wal.dir);
             exit(10);
         }
 
@@ -82,7 +85,7 @@ main(int argc, char **argv)
         walinit(&srv.wal, &list);
         r = prot_replay(&srv, &list);
         if (!r) {
-            twarnx("failed to replay log");
+            printf("failed to replay log");
             return 1;
         }
     }

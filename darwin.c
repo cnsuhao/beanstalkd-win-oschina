@@ -4,8 +4,9 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <sys/event.h>
+
 #include <sys/time.h>
+#include <sys/event.h>
 #include "dat.h"
 
 enum
