@@ -167,14 +167,15 @@ struct tube {
     struct job buried;
 };
 
-
-#define twarn(fmt, args...) warn("%s:%d in %s: " fmt, \
-                                 __FILE__, __LINE__, __func__, ##args)
-#define twarnx(fmt, args...) warnx("%s:%d in %s: " fmt, \
-                                   __FILE__, __LINE__, __func__, ##args)
-
 void warn(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void warnx(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
+
+#define twarn(fmt, args...) warn("%s:%d in %s: \n" fmt"\n", \
+                                 __FILE__, __LINE__, __func__, ##args)
+#define twarnx(fmt, args...) warnx("%s:%d in %s: \n" fmt "\n", \
+                                   __FILE__, __LINE__, __func__, ##args)
+
+
 char* fmtalloc(char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void* zalloc(int n);
 #define new(T) zalloc(sizeof(T))
@@ -384,3 +385,6 @@ struct Server {
 };
 void srvserve(Server *srv);
 void srvaccept(Server *s, int ev);
+
+
+#define version "unknown"
