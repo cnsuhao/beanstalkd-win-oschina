@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <errno.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 //#include <sys/event.h>
@@ -73,6 +72,7 @@ typedef struct fd_list {
     } \
 } while(0)
 
+static fd_set         master_error_fd_set;
 static fd_set         master_read_fd_set;
 static fd_set         master_write_fd_set;
 static fd_set         work_read_fd_set;
@@ -98,14 +98,17 @@ select_repair_fd_sets(Socket **ret)
     int    len;
     Socket* s;
 
+    WRITE_LOG("[select_repair_fd_sets] begin\n");
+
     for (i = 0; i < master_read_fd_list.fd_count; i++) {
+        WRITE_LOG("[select_repair_fd_sets] test read fd:%d\n", s->fd);
 
         s = master_read_fd_list.fd_array[i];
 
         len = sizeof(int);
 
         if (getsockopt(s->fd, SOL_SOCKET, SO_TYPE, &n, &len) == -1) {
-            WRITE_LOG("invalid descriptor %d in read fd_set", s->fd);
+            WRITE_LOG("[select_repair_fd_sets] invalid descriptor %d in read fd_set\n", s->fd);
             FD_CLR(s->fd, &master_read_fd_set);
             FDLIST_CLR(s, &master_read_fd_list);
 
@@ -116,13 +119,14 @@ select_repair_fd_sets(Socket **ret)
 
 
     for (i = 0; i < master_write_fd_list.fd_count; i++) {
+        WRITE_LOG("[select_repair_fd_sets] test write fd:%d\n", s->fd);
 
         s = master_write_fd_list.fd_array[i];
 
         len = sizeof(int);
 
         if (getsockopt(s->fd, SOL_SOCKET, SO_TYPE, &n, &len) == -1) {
-            WRITE_LOG("invalid descriptor %d in write fd_set", s->fd);
+            WRITE_LOG("[select_repair_fd_sets] invalid descriptor %d in write fd_set\n", s->fd);
             FD_CLR(s->fd, &master_write_fd_set);
             FDLIST_CLR(s, &master_write_fd_list);
 
@@ -161,18 +165,18 @@ rawfalloc(int fd, int len)
 int
 sockinit(void)
 {
+    WRITE_LOG("[sockinit] sockinit\n");
 
-    WRITE_LOG("sockinit\n");
-
+    FD_ZERO(&master_error_fd_set);
     FD_ZERO(&master_read_fd_set);
     FD_ZERO(&master_write_fd_set);
     FD_ZERO(&work_error_fd_list);
 
     max_fd = -1;
+    WRITE_LOG("[sockinit] done\n");
 
     return 0;
 }
-
 
 int
 sockwant(Socket *s, int rw)
@@ -182,12 +186,12 @@ sockwant(Socket *s, int rw)
     if (s->added) {
         switch (s->added) {
         case 'r':
-            WRITE_LOG("close read, fd:%d\n", s->fd);
+            WRITE_LOG("[sockwant] close read, fd:%d\n", s->fd);
             FD_CLR(s->fd, &master_read_fd_set);
             FDLIST_CLR(s, &master_read_fd_list);
             break;
         case 'w':
-            WRITE_LOG("close write, fd:%d\n", s->fd);
+            WRITE_LOG("[sockwant] close write, fd:%d\n", s->fd);
             FD_CLR(s->fd, &master_write_fd_set);
             FDLIST_CLR(s, &master_write_fd_list);
             break;
@@ -197,15 +201,21 @@ sockwant(Socket *s, int rw)
     }
 
     if (rw) {
+
+        if (FD_ISSET(s->fd, &master_error_fd_set)) {
+            WRITE_LOG("[sockwant] socket is in error set: fd:%d\n", s->fd);
+            return -1;
+        }
+
         switch (rw) {
         case 'r':
         case 'h':
-            WRITE_LOG("log it want read:%c, fd:%d\n", rw, s->fd);
+            WRITE_LOG("[sockwant] log it want read:%c, fd:%d\n", rw, s->fd);
             FD_SET(s->fd,     &master_read_fd_set);
             FDLIST_SET(s, rw, &master_read_fd_list);
             break;
         case 'w':
-            WRITE_LOG("log it want write:%c, fd:%d\n", rw, s->fd);
+            WRITE_LOG("[sockwant] log it want write:%c, fd:%d\n", rw, s->fd);
             FD_SET(s->fd,     &master_write_fd_set);
             FDLIST_SET(s, rw, &master_write_fd_list);
             break;
@@ -218,8 +228,18 @@ sockwant(Socket *s, int rw)
         if (max_fd < s->fd) {
             max_fd = s->fd;
         }
+    } else {
+        WRITE_LOG("[sockwant] clear error socket:fd:%d\n", s->fd);
+        FD_CLR(s->fd, &master_error_fd_set);
+
+        FD_CLR(s->fd, &master_read_fd_set);
+        FDLIST_CLR(s, &master_read_fd_list);
+
+        FD_CLR(s->fd, &master_write_fd_set);
+        FDLIST_CLR(s, &master_write_fd_list);
     }
 
+    WRITE_LOG("[sockwant] done:fd:%d\n", s->fd);
     return 0;
 }
 
@@ -227,15 +247,15 @@ int
 idle_read(Socket *s)
 {
     char bucket[IDLE_BUF_SIZE] = {0};
+    WRITE_LOG("[idle_read] begin:fd:%d\n", s->fd);
 
-    int r;
-    int c = 0;
+    int r = 0, c = 0;
     do {
         r = read(s->fd, bucket, IDLE_BUF_SIZE);
         c++;
     } while (r > 0);
-    
-    WRITE_LOG(" idle read socket %d in %d times\n", (s)->fd, c);
+
+    WRITE_LOG("[idle_read] idle read socket %d in %d times\n", (s)->fd, c);
 
     return r;
 }
@@ -253,24 +273,23 @@ socknext(Socket **s, int64 timeout)
     if (work_error_fd_list.fd_count != 0) {
         *s = work_error_fd_list.fd_array[work_error_fd_list.fd_count-1];
         FDLIST_CLR(*s, &work_error_fd_list);
-        WRITE_LOG(" error socket before  %d\n", (*s)->fd);
+        WRITE_LOG("[socknext] error socket before  %d\n", (*s)->fd);
         return 'h';
     }
 
     if (work_read_fd_list.fd_count != 0) {
         *s = work_read_fd_list.fd_array[work_read_fd_list.fd_count-1];
         FDLIST_CLR(*s, &work_read_fd_list);
-        WRITE_LOG(" read socket before  %d\n", (*s)->fd);
+        WRITE_LOG("[socknext] read socket before  %d\n", (*s)->fd);
         return 'r';
     }
 
     if (work_write_fd_list.fd_count != 0){
         *s = work_write_fd_list.fd_array[work_write_fd_list.fd_count-1];
         FDLIST_CLR(*s, &work_write_fd_list);
-        WRITE_LOG(" write socket before  %d\n", (*s)->fd);
+        WRITE_LOG("[socknext] write socket before  %d\n", (*s)->fd);
         return 'w';
     }
-
 
 
     work_read_fd_set = master_read_fd_set;
@@ -287,12 +306,13 @@ socknext(Socket **s, int64 timeout)
     tv.tv_sec = 0;
     tv.tv_usec = 500000;
     tp = &tv;
-    WRITE_DEBUG_LOG("max_fd:%d, socknext () second:%ld. %ld\n", max_fd, tv.tv_sec, tv.tv_usec);
+    WRITE_DEBUG_LOG("[socknext] max_fd:%d, socknext () second:%ld. %ld\n", max_fd, tv.tv_sec, tv.tv_usec);
 
     r = select(max_fd + 1, &work_read_fd_set, &work_write_fd_set, NULL, tp);
 
     if (r == -1) {
-        twarnx("select erro");
+        twarnx("select erro\n");
+        WRITE_LOG("[socknext] select_repair_fd_sets\n");
         return select_repair_fd_sets(s);
     }
 
@@ -308,11 +328,18 @@ socknext(Socket **s, int64 timeout)
         if (work_read_fd_list.rw_array[i] == 'h') { // if rw is hang up, idle read the data
             r = idle_read(work_read_fd_list.fd_array[i]);
             if (r == -1) {
+                WRITE_LOG("[socknext] save sock error event: %d\n", work_read_fd_list.fd_array[i]->fd);
                 FDLIST_SET(work_read_fd_list.fd_array[i], work_read_fd_list.rw_array[i], &work_error_fd_list);
+
+                FD_SET(work_read_fd_list.fd_array[i]->fd, &master_error_fd_set);
+
+                FDLIST_CLR(work_read_fd_list.fd_array[i], &master_read_fd_list);
+                FDLIST_CLR(work_read_fd_list.fd_array[i], &master_write_fd_list);
             }
             continue;
         }
 
+        WRITE_LOG("[socknext] save sock read event: %d\n", work_read_fd_list.fd_array[i]->fd);
         FDLIST_SET(work_read_fd_list.fd_array[i], work_read_fd_list.rw_array[i], &fd_notified);
     }
     work_read_fd_list = fd_notified;
@@ -327,6 +354,12 @@ socknext(Socket **s, int64 timeout)
             continue;
         }
 
+        if (FD_ISSET(fd, &master_error_fd_set)) {
+            WRITE_LOG("[socknext] can't save write event, error socket: %d\n", fd);
+            continue;
+        }
+
+        WRITE_LOG("[socknext] save sock write event: %d\n", fd);
         FDLIST_SET(work_write_fd_list.fd_array[i], work_write_fd_list.rw_array[i], &fd_notified);
     }
     work_write_fd_list = fd_notified;
@@ -334,21 +367,21 @@ socknext(Socket **s, int64 timeout)
     if (work_error_fd_list.fd_count != 0) {
         *s = work_error_fd_list.fd_array[work_error_fd_list.fd_count-1];
         FDLIST_CLR(*s, &work_error_fd_list);
-        WRITE_LOG(" error  socket  %d\n", (*s)->fd);
+        WRITE_LOG("[socknext]  error  socket  %d\n", (*s)->fd);
         return 'h';
     }
 
     if (work_read_fd_list.fd_count != 0) {
         *s = work_read_fd_list.fd_array[work_read_fd_list.fd_count-1];
         FDLIST_CLR(*s, &work_read_fd_list);
-        WRITE_LOG(" read  socket  %d\n", (*s)->fd);
+        WRITE_LOG("[socknext]  read  socket  %d\n", (*s)->fd);
         return 'r';
     }
 
     if (work_write_fd_list.fd_count != 0){
         *s = work_write_fd_list.fd_array[work_write_fd_list.fd_count-1];
         FDLIST_CLR(*s, &work_write_fd_list);
-        WRITE_LOG(" write  socket  %d\n", (*s)->fd);
+        WRITE_LOG("[socknext]  write  socket  %d\n", (*s)->fd);
         return 'w';
     }
 
