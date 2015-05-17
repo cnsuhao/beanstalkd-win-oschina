@@ -53,7 +53,6 @@ srvserve(Server *s)
         }
 
         if (rw) {
-            //printf("12222\n");
             sock->f(sock->x, rw);
         }
     }
