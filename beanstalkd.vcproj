@@ -166,22 +166,134 @@
 	</References>
 	<Files>
 		<Filter
-			Name="源文件"
+			Name="source"
 			Filter="cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx"
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
+			<File
+				RelativePath=".\conn.c"
+				>
+			</File>
+			<File
+				RelativePath=".\file.c"
+				>
+			</File>
+			<File
+				RelativePath=".\heap.c"
+				>
+			</File>
+			<File
+				RelativePath=".\job.c"
+				>
+			</File>
+			<File
+				RelativePath=".\main.c"
+				>
+			</File>
+			<File
+				RelativePath=".\ms.c"
+				>
+			</File>
+			<File
+				RelativePath=".\net.c"
+				>
+			</File>
+			<File
+				RelativePath=".\primes.c"
+				>
+			</File>
+			<File
+				RelativePath=".\prot.c"
+				>
+			</File>
+			<File
+				RelativePath=".\sd-daemon.c"
+				>
+			</File>
+			<File
+				RelativePath=".\serv.c"
+				>
+			</File>
+			<File
+				RelativePath=".\time.c"
+				>
+			</File>
+			<File
+				RelativePath=".\tube.c"
+				>
+			</File>
+			<File
+				RelativePath=".\util.c"
+				>
+			</File>
+			<File
+				RelativePath=".\vers.c"
+				>
+			</File>
+			<File
+				RelativePath=".\walg.c"
+				>
+			</File>
 		</Filter>
 		<Filter
-			Name="头文件"
+			Name="header"
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
+			<File
+				RelativePath=".\config.h"
+				>
+			</File>
+			<File
+				RelativePath=".\dat.h"
+				>
+			</File>
+			<File
+				RelativePath=".\sd-daemon.h"
+				>
+			</File>
 		</Filter>
 		<Filter
-			Name="资源文件"
+			Name="os"
 			Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav"
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
+			<File
+				RelativePath=".\darwin.c"
+				>
+			</File>
+			<File
+				RelativePath=".\freebsd.c"
+				>
+			</File>
+			<File
+				RelativePath=".\linux.c"
+				>
+			</File>
+			<File
+				RelativePath=".\windows.c"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="test"
+			>
+			<File
+				RelativePath=".\testheap.c"
+				>
+			</File>
+			<File
+				RelativePath=".\testjobs.c"
+				>
+			</File>
+			<File
+				RelativePath=".\testserv.c"
+				>
+			</File>
+			<File
+				RelativePath=".\testutil.c"
+				>
+			</File>
 		</Filter>
 	</Files>
 	<Globals>
