@@ -13,8 +13,6 @@
 int
 make_server_socket(char *host, char *port)
 {
-    if (port)
-      printf("make_server_socket port %s\n ", port);
     int fd = -1, flags, r;
     struct linger linger = {0, 0};
     struct addrinfo *airoot, *ai, hints;
@@ -24,22 +22,22 @@ make_server_socket(char *host, char *port)
      * return. */
     r = sd_listen_fds(1);
     if (r < 0) {
-        return printf("sd_listen_fds\n"), -1;
+        return twarn("sd_listen_fds"), -1;
     }
     if (r > 0) {
         if (r > 1) {
-            printf("inherited more than one listen socket;"
+            twarnx("inherited more than one listen socket;"
                    " ignoring all but the first");
         }
         fd = SD_LISTEN_FDS_START;
         r = sd_is_socket_inet(fd, 0, SOCK_STREAM, 1, 0);
         if (r < 0) {
             errno = -r;
-            printf("sd_is_socket_inet");
+            twarn("sd_is_socket_inet");
             return -1;
         }
         if (!r) {
-            printf("inherited fd is not a TCP listen socket");
+            twarnx("inherited fd is not a TCP listen socket");
             return -1;
         }
         return fd;
@@ -51,25 +49,25 @@ make_server_socket(char *host, char *port)
     hints.ai_flags = AI_PASSIVE;
     r = getaddrinfo(host, port, &hints, &airoot);
     if (r == -1)
-      return printf("getaddrinfo()"), -1;
+      return twarn("getaddrinfo()"), -1;
 
     for(ai = airoot; ai; ai = ai->ai_next) {
       fd = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
       if (fd == -1) {
-        printf("socket()");
+        twarn("socket()");
         continue;
       }
 
       flags = fcntl(fd, F_GETFL, 0);
       if (flags < 0) {
-        printf("getting flags");
+        twarn("getting flags");
         close(fd);
         continue;
       }
 
       r = fcntl(fd, F_SETFL, flags | O_NONBLOCK);
       if (r == -1) {
-        printf("setting O_NONBLOCK");
+        twarn("setting O_NONBLOCK");
         close(fd);
         continue;
       }
@@ -77,25 +75,25 @@ make_server_socket(char *host, char *port)
       flags = 1;
       r = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &flags, sizeof flags);
       if (r == -1) {
-        printf("setting SO_REUSEADDR on fd %d", fd);
+        twarn("setting SO_REUSEADDR on fd %d", fd);
         close(fd);
         continue;
       }
       r = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof flags);
       if (r == -1) {
-        printf("setting SO_KEEPALIVE on fd %d", fd);
+        twarn("setting SO_KEEPALIVE on fd %d", fd);
         close(fd);
         continue;
       }
       r = setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof linger);
       if (r == -1) {
-        printf("setting SO_LINGER on fd %d", fd);
+        twarn("setting SO_LINGER on fd %d", fd);
         close(fd);
         continue;
       }
       r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof flags);
       if (r == -1) {
-        printf("setting TCP_NODELAY on fd %d", fd);
+        twarn("setting TCP_NODELAY on fd %d", fd);
         close(fd);
         continue;
       }
@@ -118,14 +116,14 @@ make_server_socket(char *host, char *port)
       }
       r = bind(fd, ai->ai_addr, ai->ai_addrlen);
       if (r == -1) {
-        printf("bind() failed \n");
+        twarn("bind()");
         close(fd);
         continue;
       }
 
       r = listen(fd, 1024);
       if (r == -1) {
-        printf("listen()");
+        twarn("listen()");
         close(fd);
         continue;
       }

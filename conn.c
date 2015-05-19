@@ -214,7 +214,7 @@ connclose(Conn *c)
     sockwant(&c->sock, 0);
     close(c->sock.fd);
     if (verbose) {
-        warnx("close %d\n", c->sock.fd);
+        printf("close %d\n", c->sock.fd);
     }
 
     job_free(c->in_job);

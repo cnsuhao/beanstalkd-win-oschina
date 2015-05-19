@@ -21,7 +21,7 @@ srvserve(Server *s)
     int64 period;
 
     if (sockinit() == -1) {
-        twarn("sockinit failed \n");
+        twarnx("sockinit");
         exit(1);
     }
 
