@@ -327,7 +327,7 @@ socknext(Socket **s, int64 timeout)
 
         if (work_read_fd_list.rw_array[i] == 'h') { // if rw is hang up, idle read the data
             r = idle_read(work_read_fd_list.fd_array[i]);
-            if (r == -1) {
+            if (r <= 0) {
                 WRITE_LOG("[socknext] save sock error event: %d\n", work_read_fd_list.fd_array[i]->fd);
                 FDLIST_SET(work_read_fd_list.fd_array[i], work_read_fd_list.rw_array[i], &work_error_fd_list);
 
