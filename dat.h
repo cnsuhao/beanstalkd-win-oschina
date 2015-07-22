@@ -1,6 +1,7 @@
 // Requirements:
 // #include <stdint.h>
 // #include <stdlib.h>
+#include "dat_w32.h"
 
 typedef unsigned char uchar;
 typedef uchar         byte;
@@ -52,7 +53,9 @@ typedef int(FAlloc)(int, int);
 #define CONN_TYPE_WORKER   2
 #define CONN_TYPE_WAITING  4
 
+#ifndef min
 #define min(a,b) ((a)<(b)?(a):(b))
+#endif 
 
 #define URGENT_THRESHOLD 1024
 #define JOB_DATA_SIZE_LIMIT_DEFAULT ((1 << 16) - 1)
@@ -167,6 +170,13 @@ struct tube {
     struct job buried;
 };
 
+#ifdef WIN32
+#define warn(x, ...) (0L)
+#define warnx(x, ...) (0L)
+#define twarn(x, ...) (0L)
+#define twarnx(x, ...) (0L)
+
+#else
 void warn(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void warnx(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 
@@ -175,6 +185,7 @@ void warnx(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 #define twarnx(fmt, args...) warnx("%s:%d in %s: \n" fmt "\n", \
                                    __FILE__, __LINE__, __func__, ##args)
 
+#endif
 
 char* fmtalloc(char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void* zalloc(int n);

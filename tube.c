@@ -9,7 +9,7 @@ tube
 make_tube(const char *name)
 {
     tube t;
-
+    struct job tmp_job = {0};
     t = new(struct tube);
     if (!t) return NULL;
 
@@ -21,7 +21,7 @@ make_tube(const char *name)
     t->delay.less = job_delay_less;
     t->ready.rec = job_setheappos;
     t->delay.rec = job_setheappos;
-    t->buried = (struct job) { };
+    t->buried = tmp_job;
     t->buried.prev = t->buried.next = &t->buried;
     ms_init(&t->waiting, NULL, NULL);
 
@@ -88,6 +88,7 @@ tube_find(const char *name)
 tube
 tube_find_or_make(const char *name)
 {
-    return tube_find(name) ? : make_and_insert_tube(name);
+    tube ret = tube_find(name);
+    return ret ? ret : make_and_insert_tube(name);
 }
 

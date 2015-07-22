@@ -34,7 +34,7 @@ make_conn(int fd, char start_state, tube use, tube watch)
     Conn *c;
 
     c = new(Conn);
-    if (!c) return twarn("OOM"), NULL;
+    if (!c) return (twarn("OOM"), NULL);
 
     ms_init(&c->watch, (ms_event_fn) on_watch, (ms_event_fn) on_ignore);
     if (!ms_append(&c->watch, watch)) {
@@ -163,7 +163,7 @@ connsoonestjob(Conn *c)
 
     if (soonest == NULL) {
         for (j = c->reserved_jobs.next; j != &c->reserved_jobs; j = j->next) {
-            if (j->r.deadline_at <= (soonest ? : j)->r.deadline_at) soonest = j;
+            if (j->r.deadline_at <= (soonest ? soonest : j)->r.deadline_at) soonest = j;
         }
     }
     c->soonest_job = soonest;
@@ -212,7 +212,7 @@ void
 connclose(Conn *c)
 {
     sockwant(&c->sock, 0);
-    close(c->sock.fd);
+    net_close(c->sock.fd);
     if (verbose) {
         printf("close %d\n", c->sock.fd);
     }

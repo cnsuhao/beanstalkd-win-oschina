@@ -1,12 +1,21 @@
-#include <netdb.h>
+
+#ifdef WIN32
+#  include "dat_w32.h"
+#else
+#  include <netdb.h>
+#  include <sys/socket.h>
+#  include <netinet/in.h>
+#  include <netinet/tcp.h>
+#endif
+
+
+#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include "dat.h"
 #include "sd-daemon.h"
 
@@ -58,6 +67,7 @@ make_server_socket(char *host, char *port)
         continue;
       }
 
+#ifndef WIN32
       flags = fcntl(fd, F_GETFL, 0);
       if (flags < 0) {
         twarn("getting flags");
@@ -71,30 +81,45 @@ make_server_socket(char *host, char *port)
         close(fd);
         continue;
       }
+#else
+
+      do
+      {
+          DWORD yes = 1;
+          r = ioctlsocket(fd, FIONBIO, &yes);
+          if (r == -1) {
+              twarn("setting FIONBIO");
+              net_close(fd);
+              continue;
+          }
+      }
+      while(FALSE);
+      
+#endif
 
       flags = 1;
       r = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &flags, sizeof flags);
       if (r == -1) {
         twarn("setting SO_REUSEADDR on fd %d", fd);
-        close(fd);
+        net_close(fd);
         continue;
       }
       r = setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &flags, sizeof flags);
       if (r == -1) {
         twarn("setting SO_KEEPALIVE on fd %d", fd);
-        close(fd);
+        net_close(fd);
         continue;
       }
       r = setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof linger);
       if (r == -1) {
         twarn("setting SO_LINGER on fd %d", fd);
-        close(fd);
+        net_close(fd);
         continue;
       }
       r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &flags, sizeof flags);
       if (r == -1) {
         twarn("setting TCP_NODELAY on fd %d", fd);
-        close(fd);
+        net_close(fd);
         continue;
       }
 
@@ -117,14 +142,14 @@ make_server_socket(char *host, char *port)
       r = bind(fd, ai->ai_addr, ai->ai_addrlen);
       if (r == -1) {
         twarn("bind()");
-        close(fd);
+        net_close(fd);
         continue;
       }
 
       r = listen(fd, 1024);
       if (r == -1) {
         twarn("listen()");
-        close(fd);
+        net_close(fd);
         continue;
       }
 

@@ -4,10 +4,8 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/select.h>
-#include <sys/socket.h>
-//#include <sys/event.h>
-#include <sys/time.h>
+
+#include "dat_w32.h"
 #include "dat.h"
 
 
@@ -148,8 +146,9 @@ select_repair_fd_sets(Socket **ret)
 int
 rawfalloc(int fd, int len)
 {
-    WRITE_LOG("rawfalloc len\n");
     int i, w;
+
+    WRITE_LOG("rawfalloc len\n");
 
     for (i = 0; i < len; i += w) {
         w = write(fd, buf0, sizeof buf0);
@@ -247,11 +246,12 @@ int
 idle_read(Socket *s)
 {
     char bucket[IDLE_BUF_SIZE] = {0};
+    int r = 0, c = 0;
+
     WRITE_LOG("[idle_read] begin:fd:%d\n", s->fd);
 
-    int r = 0, c = 0;
     do {
-        r = read(s->fd, bucket, IDLE_BUF_SIZE);
+        r = net_read(s->fd, bucket, IDLE_BUF_SIZE);
         c++;
     } while (r > 0);
 

@@ -9,6 +9,8 @@
 
 const char *progname;
 
+#ifndef WIN32
+
 static void
 vwarnx(const char *err, const char *fmt, va_list args)
 __attribute__((format(printf, 2, 0)));
@@ -43,6 +45,8 @@ warnx(const char *fmt, ...)
     vwarnx(NULL, fmt, args);
     va_end(args);
 }
+
+#endif
 
 
 char*
@@ -134,11 +138,12 @@ parse_size_t(char *str)
     char r, x;
     size_t size;
 
-    r = sscanf(str, "%zu%c", &size, &x);
+    r = sscanf(str, "%"PRIu32"%c", &size, &x);
     if (1 != r) {
         warnx("invalid size: %s", str);
         usage(5);
     }
+
     return size;
 }
 

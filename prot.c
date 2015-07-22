@@ -1,3 +1,12 @@
+#ifdef WIN32
+#  include "dat_w32.h"
+#else
+#  include <sys/socket.h>
+#  include <sys/utsname.h>
+#  include <netinet/in.h>
+#  include <sys/resource.h>
+#endif
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -5,15 +14,12 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/resource.h>
 #include <sys/uio.h>
 #include <sys/types.h>
-#include <sys/utsname.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include "dat.h"
+
 
 /* job body cannot be greater than this many bytes long */
 size_t job_data_size_limit = JOB_DATA_SIZE_LIMIT_DEFAULT;
@@ -168,8 +174,8 @@ size_t job_data_size_limit = JOB_DATA_SIZE_LIMIT_DEFAULT;
     "cmd-pause-tube: %" PRIu64 "\n" \
     "job-timeouts: %" PRIu64 "\n" \
     "total-jobs: %" PRIu64 "\n" \
-    "max-job-size: %zu\n" \
-    "current-tubes: %zu\n" \
+    "max-job-size: %"PRIu32"\n" \
+    "current-tubes: %"PRIu32"\n" \
     "current-connections: %u\n" \
     "current-producers: %u\n" \
     "current-workers: %u\n" \
@@ -242,7 +248,10 @@ enum {
 
 static char id[NumIdBytes * 2 + 1]; // hex-encoded len of NumIdBytes
 
+#ifndef WIN32
 static struct utsname node_info;
+#endif
+
 static uint64 op_ct[TOTAL_OPS], timeout_ct = 0;
 
 static Conn *dirty;
@@ -871,7 +880,10 @@ fmt_stats(char *buf, size_t size, void *x)
 {
     int whead = 0, wcur = 0;
     Server *srv;
+
+#ifndef WIN32
     struct rusage ru = {{0, 0}, {0, 0}};
+#endif
 
     srv = x;
 
@@ -883,7 +895,9 @@ fmt_stats(char *buf, size_t size, void *x)
         wcur = srv->wal.cur->seq;
     }
 
+#ifndef WIN32
     getrusage(RUSAGE_SELF, &ru); /* don't care if it fails */
+#endif
     return snprintf(buf, size, STATS_FMT,
             global_stat.urgent_ct,
             ready_ct,
@@ -923,16 +937,27 @@ fmt_stats(char *buf, size_t size, void *x)
             count_tot_conns(),
             (long) getpid(),
             version,
+#ifndef WIN32
             (int) ru.ru_utime.tv_sec, (int) ru.ru_utime.tv_usec,
             (int) ru.ru_stime.tv_sec, (int) ru.ru_stime.tv_usec,
+#else
+            0,
+            0,
+#endif 
             uptime(),
             whead,
             wcur,
             srv->wal.nmig,
             srv->wal.nrec,
             srv->wal.filesize,
+#ifndef WIN32
             id,
-            node_info.nodename);
+            node_info.nodename
+#else
+            "null",
+            "null"
+#endif
+            );
 
 }
 
@@ -1071,7 +1096,7 @@ do_list_tubes(Conn *c, ms l)
     buf[1] = '\n';
 
     c->out_job_sent = 0;
-    return reply_line(c, STATE_SENDJOB, "OK %zu\r\n", resp_z - 2);
+    return reply_line(c, STATE_SENDJOB, "OK %"PRIu32"\r\n", resp_z - 2);
 }
 
 static int
@@ -1186,7 +1211,7 @@ dispatch_cmd(Conn *c)
     int r, i, timeout = -1;
     int z;
     uint count;
-    job j = 0;
+    job j = 0, k = 0;
     byte type;
     char *size_buf, *delay_buf, *ttr_buf, *pri_buf, *end_buf, *name;
     uint pri, body_size;
@@ -1298,7 +1323,11 @@ dispatch_cmd(Conn *c)
         break;
     case OP_PEEKJOB:
         errno = 0;
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_PEEKJOB_LEN, &end_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_PEEKJOB_LEN, &end_buf, 10);
+#endif
         if (errno) return reply_msg(c, MSG_BAD_FORMAT);
         op_ct[type]++;
 
@@ -1334,14 +1363,18 @@ dispatch_cmd(Conn *c)
         break;
     case OP_DELETE:
         errno = 0;
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_DELETE_LEN, &end_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_DELETE_LEN, &end_buf, 10);
+#endif
         if (errno) return reply_msg(c, MSG_BAD_FORMAT);
         op_ct[type]++;
 
         j = job_find(id);
-        j = remove_reserved_job(c, j) ? :
-            remove_ready_job(j) ? :
-            remove_buried_job(j) ? :
+        j = (k = remove_reserved_job(c, j)) ? k :
+            (k = remove_ready_job(j)) ? k :
+            (k = remove_buried_job(j)) ? k :
             remove_delayed_job(j);
 
         if (!j) return reply(c, MSG_NOTFOUND, MSG_NOTFOUND_LEN, STATE_SENDWORD);
@@ -1359,7 +1392,11 @@ dispatch_cmd(Conn *c)
         break;
     case OP_RELEASE:
         errno = 0;
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_RELEASE_LEN, &pri_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_RELEASE_LEN, &pri_buf, 10);
+#endif
         if (errno) return reply_msg(c, MSG_BAD_FORMAT);
 
         r = read_pri(&pri, pri_buf, &delay_buf);
@@ -1397,7 +1434,12 @@ dispatch_cmd(Conn *c)
         break;
     case OP_BURY:
         errno = 0;
+
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_BURY_LEN, &pri_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_BURY_LEN, &pri_buf, 10);
+#endif
         if (errno) return reply_msg(c, MSG_BAD_FORMAT);
 
         r = read_pri(&pri, pri_buf, NULL);
@@ -1428,7 +1470,12 @@ dispatch_cmd(Conn *c)
         return reply_line(c, STATE_SENDWORD, "KICKED %u\r\n", i);
     case OP_JOBKICK:
         errno = 0;
+
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_JOBKICK_LEN, &end_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_JOBKICK_LEN, &end_buf, 10);
+#endif
         if (errno) return twarn("strtoull"), reply_msg(c, MSG_BAD_FORMAT);
 
         op_ct[type]++;
@@ -1445,7 +1492,12 @@ dispatch_cmd(Conn *c)
         break;
     case OP_TOUCH:
         errno = 0;
+
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_TOUCH_LEN, &end_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_TOUCH_LEN, &end_buf, 10);
+#endif
         if (errno) return twarn("strtoull"), reply_msg(c, MSG_BAD_FORMAT);
 
         op_ct[type]++;
@@ -1470,7 +1522,11 @@ dispatch_cmd(Conn *c)
         break;
     case OP_JOBSTATS:
         errno = 0;
+#ifndef WIN32
         id = strtoull(c->cmd + CMD_JOBSTATS_LEN, &end_buf, 10);
+#else
+        id = _strtoui64(c->cmd + CMD_JOBSTATS_LEN, &end_buf, 10);
+#endif
         if (errno) return reply_msg(c, MSG_BAD_FORMAT);
 
         op_ct[type]++;
@@ -1548,7 +1604,7 @@ dispatch_cmd(Conn *c)
         TUBE_ASSIGN(t, NULL);
         if (!r) return reply_serr(c, MSG_OUT_OF_MEMORY);
 
-        reply_line(c, STATE_SENDWORD, "WATCHING %zu\r\n", c->watch.used);
+        reply_line(c, STATE_SENDWORD, "WATCHING %"PRIu32"\r\n", c->watch.used);
         break;
     case OP_IGNORE:
         name = c->cmd + CMD_IGNORE_LEN;
@@ -1567,7 +1623,7 @@ dispatch_cmd(Conn *c)
         if (t) ms_remove(&c->watch, t); /* may free t if refcount => 0 */
         t = NULL;
 
-        reply_line(c, STATE_SENDWORD, "WATCHING %zu\r\n", c->watch.used);
+        reply_line(c, STATE_SENDWORD, "WATCHING %"PRIu32"\r\n", c->watch.used);
         break;
     case OP_QUIT:
         c->state = STATE_CLOSE;
@@ -1684,7 +1740,7 @@ conn_data(Conn *c)
 
     switch (c->state) {
     case STATE_WANTCOMMAND:
-        r = read(c->sock.fd, c->cmd + c->cmd_read, LINE_BUF_SIZE - c->cmd_read);
+        r = net_read(c->sock.fd, c->cmd + c->cmd_read, LINE_BUF_SIZE - c->cmd_read);
         if (r == -1) return check_err(c, "read()");
         if (r == 0) {
             c->state = STATE_CLOSE;
@@ -1712,7 +1768,7 @@ conn_data(Conn *c)
         /* Invert the meaning of in_job_read while throwing away data -- it
          * counts the bytes that remain to be thrown away. */
         to_read = min(c->in_job_read, BUCKET_BUF_SIZE);
-        r = read(c->sock.fd, bucket, to_read);
+        r = net_read(c->sock.fd, bucket, to_read);
         if (r == -1) return check_err(c, "read()");
         if (r == 0) {
             c->state = STATE_CLOSE;
@@ -1730,7 +1786,7 @@ conn_data(Conn *c)
     case STATE_WANTDATA:
         j = c->in_job;
 
-        r = read(c->sock.fd, j->body + c->in_job_read, j->r.body_size -c->in_job_read);
+        r = net_read(c->sock.fd, j->body + c->in_job_read, j->r.body_size -c->in_job_read);
         if (r == -1) return check_err(c, "read()");
         if (r == 0) {
             c->state = STATE_CLOSE;
@@ -1744,7 +1800,7 @@ conn_data(Conn *c)
         maybe_enqueue_incoming_job(c);
         break;
     case STATE_SENDWORD:
-        r= write(c->sock.fd, c->reply + c->reply_sent, c->reply_len - c->reply_sent);
+        r= net_write(c->sock.fd, c->reply + c->reply_sent, c->reply_len - c->reply_sent);
         if (r == -1) return check_err(c, "write()");
         if (r == 0) {
             c->state = STATE_CLOSE;
@@ -1762,10 +1818,13 @@ conn_data(Conn *c)
     case STATE_SENDJOB:
         j = c->out_job;
 
+
         iov[0].iov_base = (void *)(c->reply + c->reply_sent);
         iov[0].iov_len = c->reply_len - c->reply_sent; /* maybe 0 */
         iov[1].iov_base = j->body + c->out_job_sent;
         iov[1].iov_len = j->r.body_size - c->out_job_sent;
+
+#if !defined WIN32
 
         r = writev(c->sock.fd, iov, 2);
         if (r == -1) return check_err(c, "writev()");
@@ -1773,6 +1832,19 @@ conn_data(Conn *c)
             c->state = STATE_CLOSE;
             return;
         }
+#else
+        do {
+            char *const buf = (char *) malloc (iov[0].iov_len + iov[1].iov_len);
+            memcpy(buf, iov[0].iov_base, iov[0].iov_len);
+            memcpy(buf + iov[0].iov_len, iov[1].iov_base, iov[1].iov_len);
+
+            r = net_write(c->sock.fd, buf, iov[0].iov_len + iov[1].iov_len);
+            free(buf);
+        }
+        while(FALSE);
+
+        if (r == -1) return check_err(c, "write()");
+#endif
 
         /* update the sent values */
         c->reply_sent += r;
@@ -1828,7 +1900,7 @@ h_conn(const int fd, const short which, Conn *c)
 {
     if (fd != c->sock.fd) {
         twarnx("Argh! event fd doesn't match conn fd.");
-        close(fd);
+        net_close(fd);
         connclose(c);
         update_conns();
         return;
@@ -1924,6 +1996,7 @@ h_accept(const int fd, const short which, Server *s)
         printf("accept %d\n", cfd);
     }
 
+#ifndef WIN32
     flags = fcntl(cfd, F_GETFL, 0);
     if (flags < 0) {
         twarn("getting flags");
@@ -1945,11 +2018,24 @@ h_accept(const int fd, const short which, Server *s)
         update_conns();
         return;
     }
+#else
+    do
+    {
+        DWORD yes = 1;
+        r = ioctlsocket(cfd, FIONBIO, &yes);
+        if (r == -1) {
+            twarn("setting FIONBIO");
+            net_close(fd);
+            continue;
+        }
+    }
+    while(FALSE);
+#endif
 
     c = make_conn(cfd, STATE_WANTCOMMAND, default_tube, default_tube);
     if (!c) {
         twarnx("make_conn() failed");
-        close(cfd);
+        net_close(cfd);
         if (verbose) {
             printf("close %d\n", cfd);
         }
@@ -1964,7 +2050,7 @@ h_accept(const int fd, const short which, Server *s)
     r = sockwant(&c->sock, 'r');
     if (r == -1) {
         twarn("sockwant");
-        close(cfd);
+        net_close(cfd);
         if (verbose) {
             printf("close %d\n", cfd);
         }
@@ -1980,6 +2066,7 @@ prot_init()
     started_at = nanoseconds();
     memset(op_ct, 0, sizeof(op_ct));
 
+#ifndef WIN32
     int dev_random = open("/dev/urandom", O_RDONLY);
     if (dev_random < 0) {
         twarn("open /dev/urandom");
@@ -2002,6 +2089,7 @@ prot_init()
         warn("uname");
         exit(50);
     }
+#endif
 
     ms_init(&tubes, NULL, NULL);
 

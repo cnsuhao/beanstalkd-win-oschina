@@ -1,6 +1,13 @@
 #include <stdint.h>
 #include <stdlib.h>
-#include <sys/socket.h>
+
+#ifdef WIN32
+#  include "dat_w32.h"
+#else
+#  include <sys/socket.h>
+#endif
+
+
 #include "dat.h"
 
 struct Server srv = {
@@ -44,9 +51,9 @@ srvserve(Server *s)
 
 
     for (;;) {
+        int rw = 0;
         period = prottick(s);
-
-        int rw = socknext(&sock, period);
+        rw = socknext(&sock, period);
         if (rw == -1) {
             twarnx("socknext");
             exit(1);

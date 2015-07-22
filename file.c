@@ -202,7 +202,7 @@ readrec(File *f, job l, int *err)
     case Delayed:
         if (!j) {
             if (jr.body_size > job_data_size_limit) {
-                warnpos(f, -r, "job %"PRIu64" is too big (%"PRId32" > %zu)",
+                warnpos(f, -r, "job %"PRIu64" is too big (%"PRId32" > %"PRIu32")",
                         jr.id,
                         jr.body_size,
                         job_data_size_limit);
@@ -284,7 +284,7 @@ readrec5(File *f, job l, int *err)
     }
     sz += r;
     if (namelen >= MAX_TUBE_NAME_LEN) {
-        warnpos(f, -r, "namelen %zu exceeds maximum of %d", namelen, MAX_TUBE_NAME_LEN - 1);
+        warnpos(f, -r, "namelen %"PRIu32" exceeds maximum of %d", namelen, MAX_TUBE_NAME_LEN - 1);
         *err = 1;
         return 0;
     }
@@ -326,7 +326,7 @@ readrec5(File *f, job l, int *err)
     case Delayed:
         if (!j) {
             if (jr.body_size > job_data_size_limit) {
-                warnpos(f, -r, "job %"PRIu64" is too big (%"PRId32" > %zu)",
+                warnpos(f, -r, "job %"PRIu64" is too big (%"PRId32" > %"PRIu32")",
                         jr.id,
                         jr.body_size,
                         job_data_size_limit);
@@ -533,7 +533,11 @@ filewclose(File *f)
     if (!f) return;
     if (!f->iswopen) return;
     if (f->free) {
+#ifndef WIN32
         (void)ftruncate(f->fd, f->w->filesize - f->free);
+#else
+        (void)_chsize(f->fd, f->w->filesize - f->free);
+#endif
     }
     close(f->fd);
     f->iswopen = 0;

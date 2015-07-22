@@ -5,9 +5,14 @@
 #include <errno.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <pwd.h>
 #include <fcntl.h>
 #include "dat.h"
+
+
+
+
+#ifndef WIN32
+#include <pwd.h>
 
 static void
 su(const char *user) {
@@ -25,7 +30,6 @@ su(const char *user) {
     r = setuid(pwent->pw_uid);
     if (r == -1) twarn("setuid(%d \"%s\")", pwent->pw_uid, user), exit(34);
 }
-
 
 static void
 set_sig_handlers()
@@ -46,15 +50,48 @@ set_sig_handlers()
     if (r == -1) twarn("sigaction(SIGUSR1)"), exit(111);
 }
 
+static int 
+setlinebuf(FILE* stream) {
+    return setvbuf(stream, (char*)NULL, _IOLBF, 0);
+}
+#else
+
+int 
+init_winsock() {
+    WSADATA wsa;
+    WORD vers;
+    int r;
+
+    vers = MAKEWORD(2, 2);
+    r = WSAStartup(vers, &wsa);
+
+    if(r != NO_ERROR || LOBYTE(wsa.wVersion) != 2 || HIBYTE(wsa.wVersion) != 2 ) {
+        twarnx("init_winsock()");
+        exit(1);
+    } 
+
+    return 0;
+}
+
+
+#endif
+
+
 int
 main(int argc, char **argv)
 {
     int r;
-    struct job list = {};
+    struct job list = {0};
+
+#if !defined WIN32
+    setlinebuf(stdout);
+#else
+    init_winsock(); 
+#endif
 
     progname = argv[0];
-    setlinebuf(stdout);
     optparse(&srv, argv+1);
+
 
     if (verbose) {
         printf("pid %d\n", getpid());
@@ -66,8 +103,10 @@ main(int argc, char **argv)
 
     prot_init();
 
+#ifndef WIN32
     if (srv.user) su(srv.user);
     set_sig_handlers();
+#endif
 
     if (srv.wal.use) {
         // We want to make sure that only one beanstalkd tries

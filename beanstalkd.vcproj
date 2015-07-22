@@ -48,6 +48,7 @@
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
+				CompileAs="1"
 			/>
 			<Tool
 				Name="VCManagedResourceCompilerTool"
@@ -60,6 +61,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="ws2_32.lib"
 				LinkIncremental="2"
 				GenerateDebugInformation="true"
 				SubSystem="1"
@@ -249,6 +251,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\dat_w32.h"
+				>
+			</File>
+			<File
 				RelativePath=".\sd-daemon.h"
 				>
 			</File>
@@ -259,39 +265,7 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 			<File
-				RelativePath=".\darwin.c"
-				>
-			</File>
-			<File
-				RelativePath=".\freebsd.c"
-				>
-			</File>
-			<File
-				RelativePath=".\linux.c"
-				>
-			</File>
-			<File
 				RelativePath=".\windows.c"
-				>
-			</File>
-		</Filter>
-		<Filter
-			Name="test"
-			>
-			<File
-				RelativePath=".\testheap.c"
-				>
-			</File>
-			<File
-				RelativePath=".\testjobs.c"
-				>
-			</File>
-			<File
-				RelativePath=".\testserv.c"
-				>
-			</File>
-			<File
-				RelativePath=".\testutil.c"
 				>
 			</File>
 		</Filter>

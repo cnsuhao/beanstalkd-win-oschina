@@ -28,12 +28,19 @@
 #define _GNU_SOURCE
 #endif
 
+#ifdef WIN32
+#  include "dat_w32.h"
+#else
+#  include <sys/socket.h>
+#  include <sys/un.h>
+#  include <sys/fcntl.h>
+#  include <netinet/in.h>
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/fcntl.h>
-#include <netinet/in.h>
+#include <dirent.h>
+
 #include <stdlib.h>
 #include <errno.h>
 #include <unistd.h>
@@ -199,7 +206,7 @@ static int sd_is_socket_internal(int fd, int type, int listening) {
 
         return 1;
 }
-
+#if !defined WIN32
 union sockaddr_union {
         struct sockaddr sa;
         struct sockaddr_in in4;
@@ -207,8 +214,12 @@ union sockaddr_union {
         struct sockaddr_un un;
         struct sockaddr_storage storage;
 };
+#endif
 
 int sd_is_socket(int fd, int family, int type, int listening) {
+#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+        return 1;
+#else
         int r;
 
         if (family < 0)
@@ -234,9 +245,13 @@ int sd_is_socket(int fd, int family, int type, int listening) {
         }
 
         return 1;
+#endif
 }
 
 int sd_is_socket_inet(int fd, int family, int type, int listening, uint16_t port) {
+#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+        return 1;
+#else
         union sockaddr_union sockaddr;
         socklen_t l;
         int r;
@@ -279,9 +294,13 @@ int sd_is_socket_inet(int fd, int family, int type, int listening, uint16_t port
         }
 
         return 1;
+#endif
 }
 
 int sd_is_socket_unix(int fd, int type, int listening, const char *path, size_t length) {
+#if defined(DISABLE_SYSTEMD) || !defined(__linux__)
+        return 0;
+#else
         union sockaddr_union sockaddr;
         socklen_t l;
         int r;
@@ -322,6 +341,7 @@ int sd_is_socket_unix(int fd, int type, int listening, const char *path, size_t 
         }
 
         return 1;
+#endif
 }
 
 int sd_notify(int unset_environment, const char *state) {

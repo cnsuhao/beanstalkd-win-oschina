@@ -164,9 +164,15 @@ walsync(Wal *w)
     now = nanoseconds();
     if (w->wantsync && now >= w->lastsync+w->syncrate) {
         w->lastsync = now;
+#if !defined WIN32
         if (fsync(w->cur->fd) == -1) {
             twarn("fsync");
         }
+#else
+        if (_commit(w->cur->fd) == -1) {
+            twarn("fflush");
+        }
+#endif
     }
 }
 
@@ -404,7 +410,9 @@ waldirlock(Wal *w)
 {
     int r;
     int fd;
+#ifndef WIN32
     struct flock lk;
+#endif
     char *path;
     size_t path_length;
 
@@ -422,6 +430,7 @@ waldirlock(Wal *w)
         return 0;
     }
 
+#ifndef WIN32
     lk.l_type = F_WRLCK;
     lk.l_whence = SEEK_SET;
     lk.l_start = 0;
@@ -431,6 +440,7 @@ waldirlock(Wal *w)
         twarn("fcntl");
         return 0;
     }
+#endif
 
     // intentionally leak fd, since we never want to close it
     // and we'll never need it again
