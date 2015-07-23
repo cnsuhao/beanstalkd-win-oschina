@@ -6,6 +6,8 @@
 #include <WS2tcpip.h>
 #include <WinError.h>
 
+#pragma comment(lib, "ws2_32.lib")
+
 #define EWOULDBLOCK WSAEWOULDBLOCK
 
 #ifndef __attribute__
