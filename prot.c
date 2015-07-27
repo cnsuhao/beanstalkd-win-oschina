@@ -1986,7 +1986,7 @@ h_accept(const int fd, const short which, Server *s)
     struct sockaddr_in6 addr;
 
     addrlen = sizeof addr;
-    cfd = accept(fd, (struct sockaddr *)&addr, &addrlen);
+    cfd = net_accept(fd, (struct sockaddr *)&addr, &addrlen);
     if (cfd == -1) {
         if (errno != EAGAIN && errno != EWOULDBLOCK) twarn("accept()");
         update_conns();
