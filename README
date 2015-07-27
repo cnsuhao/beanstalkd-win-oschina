@@ -1,3 +1,6 @@
+
+
+
 -----------------------------------------
 
 fork from http://kr.github.io/beanstalkd/
@@ -13,9 +16,15 @@ make
 
 
 changgelog：
+v1
     windows select suport
     select size make 4096
 
+
+progress：  
+    iocp version ：https://github.com/LomoX-Offical/beanstalkd-win/tree/iocp
+    
+    
 
 developer：  张家柱 蔡东赟 
 mail: 
