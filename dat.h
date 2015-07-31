@@ -98,6 +98,7 @@ enum {
 typedef struct {
     WSAOVERLAPPED    ovlp;
     int              event;
+    int              seq;
     void*            data;
 } iocp_event_ovlp_t;
 
@@ -112,11 +113,12 @@ struct Socket {
     void   *x;
     int    added;
 #if defined WIN32_IOCP_MODE
-    int           bound;
+    int           bind_id;
     int           reading;
     int           writing;
+    int           read_seq;
+    int           write_seq;
     int           type;
-    iocp_event_ovlp_t ovlp;
 #endif
 };
 int sockinit(void);
