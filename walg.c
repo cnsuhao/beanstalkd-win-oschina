@@ -468,7 +468,7 @@ walread(Wal *w, job list, int min, int max)
             exit(1);
         }
 
-        fd = open(f->path, O_RDONLY);
+        fd = open(f->path, O_RDONLY|O_BINARY);
         if (fd < 0) {
             twarn("open %s", f->path);
             free(f->path);
@@ -480,6 +480,14 @@ walread(Wal *w, job list, int min, int max)
         fileadd(f, w);
         err |= fileread(f, list);
         close(fd);
+
+#if defined WIN32
+        // in windows, unlink can not delete file while fd has not been close
+        if (f->refs < 1) { 
+            walgc(f->w);
+        }
+#endif
+
     }
 
     if (err) {
