@@ -58,6 +58,7 @@ fileincref(File *f)
 }
 
 
+#if !defined WIN32
 void
 filedecref(File *f)
 {
@@ -67,7 +68,22 @@ filedecref(File *f)
         walgc(f->w);
     }
 }
+#else
+void
+filedecref(File *f)
+{
+    if (!f) return;
+    f->refs--;
 
+    // in windows, unlink can not delete file while fd has not been close
+    // but when iswopen, it can.
+    if (f->iswopen != 0) {
+        if (f->refs < 1) {
+            walgc(f->w);
+        }
+    }
+}
+#endif
 
 void
 fileaddjob(File *f, job j)
@@ -441,7 +457,11 @@ filewopen(File *f)
     int n;
     int ver = Walver;
 
-    fd = open(f->path, O_WRONLY|O_CREAT, 0400);
+#if defined WIN32
+    fd = open(f->path, O_WRONLY|O_CREAT|O_BINARY, S_IWRITE);
+#else
+    fd = open(f->path, O_WRONLY|O_CREAT|O_BINARY, 0400);
+#endif
     if (fd < 0) {
         twarn("open %s", f->path);
         return;
@@ -531,7 +551,7 @@ void
 filewclose(File *f)
 {
     if (!f) return;
-    if (!f->iswopen) return;
+    if (f->iswopen != 1) return;
     if (f->free) {
 #ifndef WIN32
         (void)ftruncate(f->fd, f->w->filesize - f->free);
@@ -540,7 +560,7 @@ filewclose(File *f)
 #endif
     }
     close(f->fd);
-    f->iswopen = 0;
+    f->iswopen = -1;
     filedecref(f);
 }
 

@@ -88,12 +88,38 @@ struct Heap {
 int   heapinsert(Heap *h, void *x);
 void* heapremove(Heap *h, int k);
 
+enum {
+    SOCK_TYPE_LISTEN = 0,
+    SOCK_TYPE_CONNECT
+};
+
+#define ACCEPT_LENGTH (sizeof(SOCKADDR) + 16)
+
+typedef struct {
+    WSAOVERLAPPED    ovlp;
+    int              event;
+    int              seq;
+    void*            data;
+} iocp_event_ovlp_t;
+
+typedef struct {
+    int fd;
+    char buf[ACCEPT_LENGTH * 2];
+} iocp_accept_t;
 
 struct Socket {
     int    fd;
     Handle f;
     void   *x;
     int    added;
+#if defined WIN32_IOCP_MODE
+    int           bind_id;
+    int           reading;
+    int           writing;
+    int           read_seq;
+    int           write_seq;
+    int           type;
+#endif
 };
 int sockinit(void);
 int sockwant(Socket*, int);

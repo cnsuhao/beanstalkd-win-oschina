@@ -8,6 +8,7 @@
 #include "dat_w32.h"
 #include "dat.h"
 
+#if defined WIN32_SELECT_MODE
 
 #define IDLE_BUF_SIZE (1024)
 
@@ -387,3 +388,5 @@ socknext(Socket **s, int64 timeout)
 
     return 0;
 }
+
+#endif

@@ -46,6 +46,9 @@ make_conn(int fd, char start_state, tube use, tube watch)
     use->using_ct++;
 
     c->sock.fd = fd;
+#if defined WIN32_IOCP_MODE
+    c->sock.type = SOCK_TYPE_CONNECT;
+#endif
     c->state = start_state;
     c->pending_timeout = -1;
     c->tickpos = -1;
